@@ -28,18 +28,27 @@ Encoder2::Encoder2(const bool bHwAccel, const bool bNv,
     :IEncoder2(bHwAccel, bNv, w, h, fps, outFile, fmt)
 {
     int ret = 0;
-    
+
+    pLogger = CPlusPlusLogging::Logger::getInstance();
+    snprintf(m_logBuff, sizeof(m_logBuff), "Encoder starting [%d %d %d %d %d %d]", bHwAccel, bNv,
+        w, h, fps, fmt);
+    pLogger->info(m_logBuff);
+
+
     m_bInited = false;
     if (fmt == 0) // 420P supported
     {
         m_pixFormat = AV_PIX_FMT_YUV420P;
+        m_rawBufferSizeBytes = w * h * 3 / 2;
     }
     else if (fmt == 1) // nv12 
     {
         m_pixFormat = AV_PIX_FMT_NV12;
+        m_rawBufferSizeBytes = w * h * 3 / 2;
     }
     else
     {
+        m_rawBufferSizeBytes = 0; 
         return;
     }
     
@@ -53,20 +62,88 @@ Encoder2::Encoder2(const bool bHwAccel, const bool bNv,
     m_numFiltersInGraph = 0;
 
     ret = setup(outFile, bHwAccel, bNv);
-    if (ret >= 0)
+    if (ret < 0)
     {
-        m_bInited = true;
+        m_bInited = false;
+        return;
     }
+    // Start thread
+    m_bEncoderStopped = false;
+    std::thread tempThread(&Encoder2::EncodeThreadFunc, this, nullptr);
+    m_encodeThread.swap(tempThread);
+    m_bInited = true;
 }
 
 Encoder2::~Encoder2()
 {
+    if (!m_bInited)
+        return;
 
+    flush();
+    snprintf(m_logBuff, sizeof(m_logBuff), "Encoded [%d] frames", m_frameId);
+    pLogger->info(m_logBuff);
+
+    if (m_muxer)
+    {
+        avformat_free_context(m_muxer);
+        m_muxer = nullptr;
+    }
+    if (m_graph)
+    {
+        avfilter_graph_free(&m_graph);
+        m_graph = nullptr;
+    }
+    if (m_encoder)
+    {
+        avcodec_free_context(&m_encoder);
+        m_encoder = nullptr;
+    }
+    m_bEncoderStopped = true;
+    m_encodeThreadCv.notify_one();
+    if (m_encodeThread.joinable())
+        m_encodeThread.join();
+    m_bInited = false;
 }
 
 bool Encoder2::isInited()
 {
     return m_bInited;
+}
+
+void Encoder2::EncodeThreadFunc(void* param)
+{
+    pLogger->info("Encode thread starting");
+    while (true)
+    {
+        std::mutex encodeThreadMtx;
+        std::unique_lock<std::mutex> encodeThreadLock(encodeThreadMtx);
+
+        m_encodeThreadCv.wait(encodeThreadLock);
+
+        if (m_bEncoderStopped)
+        {
+            break;
+        }
+        // Else do processing
+        {
+            int ret = 0;
+            std::unique_lock<std::mutex> encodeBuffLock(m_inputQMutex);
+            DataBuff dataBuff = m_encodeInputQ.front();
+
+            std::vector<DataBuff>::iterator it1 = m_encodeInputQ.begin();
+            m_encodeInputQ.erase(it1);
+
+            ret = addFrame((uint8_t*)dataBuff.pBuff);
+            delete[]dataBuff.pBuff;
+
+            if (ret < 0)
+            {
+                pLogger->info("Encode thread breaking - addFrame err");
+                break;
+            }
+        }
+    }
+    pLogger->info("Encode thread exiting");
 }
 
 int Encoder2::createFilterGraphPureSW(AVPixelFormat pixFormat)
@@ -85,7 +162,7 @@ int Encoder2::createFilterGraphPureSW(AVPixelFormat pixFormat)
         filterArgs[1] =  filterArgs[3] = "pix_fmts=nv12";
     }
 
-    AVFilterGraph *graph = avfilter_graph_alloc();
+    m_graph = avfilter_graph_alloc();
 
     // input args
     char args[512];
@@ -110,9 +187,10 @@ int Encoder2::createFilterGraphPureSW(AVPixelFormat pixFormat)
     for (int i = 0; i < MAX_PURESW_FILTERS; i++)
     {
         ret = avfilter_graph_create_filter(&m_filterContexts[i],
-            avfilter_get_by_name(filterNames[i]), filterSelfNames[i], filterArgs[i], filterParams[i], graph);
+            avfilter_get_by_name(filterNames[i]), filterSelfNames[i], filterArgs[i], filterParams[i], m_graph);
         if (ret < 0)
         {
+            pLogger->error("avfilter_graph_create_filter failed");
             return -1;
         }
     }
@@ -122,7 +200,7 @@ int Encoder2::createFilterGraphPureSW(AVPixelFormat pixFormat)
         ret = avfilter_link(m_filterContexts[i], 0, m_filterContexts[i + 1], 0);
     }
     // Finalise
-    ret = avfilter_graph_config(graph, 0);
+    ret = avfilter_graph_config(m_graph, 0);
 
     m_numFiltersInGraph = MAX_PURESW_FILTERS;
 
@@ -139,7 +217,7 @@ int Encoder2::createFilterGraphNv(AVPixelFormat pixFormat)
     const char* filterArgs[MAX_FILTERS] = {"", "pix_fmts=yuv420p", "", "x:y", "", "pix_fmts=yuv420p", "" };
     void* filterParams[MAX_FILTERS] = {0};
 
-    AVFilterGraph *graph = avfilter_graph_alloc();
+    m_graph = avfilter_graph_alloc();
 
     if (AV_PIX_FMT_NV12 == pixFormat) // nv12
     {
@@ -169,9 +247,10 @@ int Encoder2::createFilterGraphNv(AVPixelFormat pixFormat)
     for (int i = 0; i < MAX_FILTERS; i++)
     {
         ret = avfilter_graph_create_filter(&m_filterContexts[i],
-            avfilter_get_by_name(filterNames[i]), filterSelfNames[i], filterArgs[i], filterParams[i], graph);
+            avfilter_get_by_name(filterNames[i]), filterSelfNames[i], filterArgs[i], filterParams[i], m_graph);
         if (ret < 0)
         {
+            pLogger->error("avfilter_graph_create_filter failed");
             return -1;
         }
     }
@@ -181,11 +260,47 @@ int Encoder2::createFilterGraphNv(AVPixelFormat pixFormat)
         ret = avfilter_link(m_filterContexts[i], 0, m_filterContexts[i+1], 0);
     }
     // Finalise
-    ret = avfilter_graph_config(graph, 0);
+    ret = avfilter_graph_config(m_graph, 0);
 
     m_numFiltersInGraph = MAX_FILTERS;
 
     return ret;
+}
+
+int Encoder2::addFrameToQ(uint8_t* pData, int sizeBytes)
+{
+
+    if (m_encodeInputQ.size() > MAX_PENDING_ENCODE_ITEMS)
+    {
+        pLogger->error("Too many pending items");
+        return -1;
+    }
+    if (sizeBytes != m_rawBufferSizeBytes)
+    {
+        pLogger->error("mismatch in inputsize");
+        return -1;
+    }
+    // Add to Q
+    {
+        std::unique_lock<std::mutex> encodeBuffLock(m_inputQMutex);
+
+        uint8_t* pNewBuff = new uint8_t[m_rawBufferSizeBytes];
+        if (!pNewBuff)
+        {
+            pLogger->error("Could not allocate to push to Q");
+            return -1;
+        }
+
+        DataBuff dataBuff;
+        dataBuff.pBuff = pNewBuff;
+        dataBuff.pixFormat = m_pixFormat;
+        dataBuff.sizeBytes = m_rawBufferSizeBytes;
+
+        memcpy(pNewBuff, pData, m_rawBufferSizeBytes);
+        m_encodeInputQ.push_back(dataBuff);
+        m_encodeThreadCv.notify_one();
+    }
+    return 0;
 }
 
 int Encoder2::addFrame(uint8_t* pData)
@@ -210,12 +325,14 @@ int Encoder2::addFrame(uint8_t* pData)
         {
             av_frame_free(&out);
             av_frame_free(&input);
+            pLogger->error("write frame failed");
             return -1;
         }
         if (0 == m_numFiltersInGraph)
         {
             av_frame_free(&out);
             av_frame_free(&input);
+            pLogger->error("0 filters in graph");
             return -1;
         }
         ret = av_buffersink_get_frame(m_filterContexts[m_numFiltersInGraph - 1], out);
@@ -223,6 +340,7 @@ int Encoder2::addFrame(uint8_t* pData)
         {
             av_frame_free(&out);
             av_frame_free(&input);
+            pLogger->error("buffersink get frame failed");
             return -1;
         }
 
@@ -249,6 +367,7 @@ int Encoder2::encodeFrame(AVFrame* frame)
     
     if (ret < 0)
     {
+        pLogger->error("send frame failed");
         return -1;
     }
 
@@ -280,6 +399,7 @@ int Encoder2::flush()
     
     ret = av_write_trailer(m_muxer);
     
+    pLogger->info("Flushed");
     return 0;
 }
 
@@ -291,6 +411,7 @@ int Encoder2::setup(const char* outFile, const bool bHwAccel, const bool bNv)
     
     if (ret < 0 || !m_muxer)
     {
+        pLogger->error("Null muxer");
         return -1;
     }
 
@@ -300,7 +421,6 @@ int Encoder2::setup(const char* outFile, const bool bHwAccel, const bool bNv)
         return -1;
     }
     m_avStream = avformat_new_stream(m_muxer, nullptr);
-    assert(m_avStream != nullptr);
     if (!m_avStream)
     {
         return -1;
@@ -316,6 +436,7 @@ int Encoder2::setup(const char* outFile, const bool bHwAccel, const bool bNv)
     ret = avcodec_parameters_from_context(m_avStream->codecpar, m_encoder);
     if (ret < 0)
     {
+        pLogger->error("avcodec_parameters_from_context failed");
         return -1;
     }
 
@@ -349,6 +470,7 @@ int Encoder2::setupEncoder(const bool bHwAccel, const bool bNv)
     videoCodec = avcodec_find_encoder_by_name(encoderName);
     if (!videoCodec)
     {
+        pLogger->error("Could not find encoder by name");
         return -1;
     }
     m_encoder = avcodec_alloc_context3(videoCodec);
@@ -382,6 +504,7 @@ int Encoder2::setupEncoder(const bool bHwAccel, const bool bNv)
     ret = avcodec_open2(m_encoder, videoCodec, nullptr);
     if (ret < 0)
     {
+        pLogger->error("Could not open2 encoder");
         return -1;
     }
     m_muxer->video_codec_id = videoCodec->id;

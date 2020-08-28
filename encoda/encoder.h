@@ -16,6 +16,18 @@ extern "C" {
 #include <libavfilter/buffersrc.h>
 }
 
+#include <thread>
+#include <vector>
+#include <mutex>
+#include "../Logger.h"
+
+struct DataBuff
+{
+    void* pBuff;
+    int sizeBytes;
+    int pixFormat;
+};
+
 #define MAX_FILTERS 7
 #define MAX_PURESW_FILTERS (5)
 class Encoder2 : public IEncoder2
@@ -25,6 +37,7 @@ public:
     ~Encoder2();
     bool isInited();
     int addFrame(uint8_t* pBuffer);
+    int addFrameToQ(uint8_t* pBuffer, int sizeBytes);
     int flush();
 private:
     AVFilterContext* m_filterContexts[MAX_FILTERS] = { 0 };
@@ -35,6 +48,10 @@ private:
     AVStream* m_avStream;
     AVFrame* m_frameHeader;
     AVPixelFormat m_pixFormat;
+    AVFilterGraph* m_graph;
+
+    char m_logBuff[1024];
+    CPlusPlusLogging::Logger* pLogger;
 
     int m_width ;
     int m_height;
@@ -42,10 +59,19 @@ private:
     bool m_bInited;
     bool m_bUseFilterGraph;
     int m_numFiltersInGraph;
+    int m_rawBufferSizeBytes;
 
     int createFilterGraphNv(AVPixelFormat pixFormat);
     int createFilterGraphPureSW(AVPixelFormat pixFormat);
     int encodeFrame(AVFrame* frame);
     int setup(const char* outFile, const bool bHwAccel, const bool bNv);
     int setupEncoder(const bool bHwAccel, const bool bNv);
+    // Thread
+    std::thread m_encodeThread;
+#define MAX_PENDING_ENCODE_ITEMS (10)
+    std::vector<DataBuff> m_encodeInputQ;
+    std::mutex m_inputQMutex;
+    std::condition_variable m_encodeThreadCv;
+    bool m_bEncoderStopped;
+    void EncodeThreadFunc(void* param);
 };

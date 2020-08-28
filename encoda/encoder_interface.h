@@ -18,7 +18,7 @@ public:
     virtual ~IEncoder2() {};
     virtual bool isInited() = 0;
     virtual int addFrame(uint8_t* pBuffer) = 0;
-    virtual int flush() = 0;
+    virtual int addFrameToQ(uint8_t* pBuffer, int sizeBytes) = 0;
 };
 
 // Factory

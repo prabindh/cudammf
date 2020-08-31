@@ -9,8 +9,14 @@ int Decoder3::CreateYUVCudaResources(void** pStatePtr, int w, int h, int format)
 {
     cudaError_t cudaErr = cudaSuccess;
     CudaState* pState = &m_cudaState;
+    int count = 0;
 
-    cudaGLSetGLDevice(0);
+    cudaGetDeviceCount(&count);
+    if (0 == count)
+    {
+        m_pLogger->error("No CUDA devices");
+        return -1;
+    }
     cudaSetDevice(0);
 
     if (!pStatePtr)
@@ -35,8 +41,14 @@ int Decoder3::CreateYUVCudaResources(void** pStatePtr, int w, int h, int format)
 
         cudaErr = cudaMalloc(&pState->g_pDeviceNV12_Y, pState->g_sizeNV12_Y);
         if (cudaSuccess != cudaErr)
+        {
+            snprintf(m_logBuff, sizeof(m_logBuff), "CudaMalloc NV12Y failed [%d]", cudaErr);
+            m_pLogger->error(m_logBuff);
+            const char* someString;
+            someString = cudaGetErrorString(cudaErr);
+            if (someString) m_pLogger->error(someString);
             return -1;
-
+        }
         cudaErr = cudaMalloc(&pState->g_pDeviceNV12_UV, pState->g_sizeNV12_UV);
 
         if (cudaSuccess != cudaErr)
@@ -49,7 +61,14 @@ int Decoder3::CreateYUVCudaResources(void** pStatePtr, int w, int h, int format)
         pState->g_sizeYUV420P_V = w * h / 4;
         cudaErr = cudaMalloc(&pState->g_pDeviceYUV420P_Y, pState->g_sizeYUV420P_Y);
         if (cudaSuccess != cudaErr)
+        {
+            snprintf(m_logBuff, sizeof(m_logBuff), "CudaMalloc 420Y failed [%d]", cudaErr);
+            m_pLogger->error(m_logBuff);
+            const char* someString;
+            someString = cudaGetErrorString(cudaErr);
+            if (someString) m_pLogger->error(someString);
             return -1;
+        }
         cudaErr = cudaMalloc(&pState->g_pDeviceYUV420P_U, pState->g_sizeYUV420P_U);
         if (cudaSuccess != cudaErr)
             return -1;

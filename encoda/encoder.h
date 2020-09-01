@@ -21,6 +21,10 @@ extern "C" {
 #include <mutex>
 #include "../Logger.h"
 
+#define ENCODER_MAJOR_VERSION (1)
+#define ENCODER_MINOR_VERSION (0)
+
+
 struct DataBuff
 {
     void* pBuff;
@@ -35,6 +39,7 @@ class Encoder2 : public IEncoder2
 public:
     Encoder2(const bool hwAccel, const bool bNv, int w, int h, int fps, const char* outFile, int format);
     ~Encoder2();
+    void GetVersion(int* maj, int* min);
     bool isInited();
     int addFrame(uint8_t* pBuffer);
     int addFrameToQ(uint8_t* pBuffer, int sizeBytes);

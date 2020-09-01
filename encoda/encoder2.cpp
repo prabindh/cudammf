@@ -105,6 +105,13 @@ Encoder2::~Encoder2()
     m_bInited = false;
 }
 
+void Encoder2::GetVersion(int* maj, int* min)
+{
+    if (!maj || !min) return;
+    *maj = ENCODER_MAJOR_VERSION;
+    *min = ENCODER_MINOR_VERSION;
+}
+
 bool Encoder2::isInited()
 {
     return m_bInited;

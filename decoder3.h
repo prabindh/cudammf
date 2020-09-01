@@ -28,6 +28,9 @@ extern "C" {
 #include <cuda_gl_interop.h>
 #include "cuda_interop.h"
 
+#define DECODER_MAJOR_VERSION (1)
+#define DECODER_MINOR_VERSION (0)
+
 #define MAX_SIZE_BGRA_BUFFER_Q (20)
 
 struct TimedQ
@@ -41,6 +44,7 @@ class Decoder3 : public IDecoder3
 public:
     Decoder3(bool bUseNvDec, bool bUseNvConverter);
     ~Decoder3();
+    void GetVersion(int* maj, int* min);
     int VideoReadInit(char* fileName, int& w, int& h);
     // To be called by renderer to obtain decoded buffer
     int ReadNextFrame(TimedBuffer* pRGBBufPtr, void** pDeviceBuffer);

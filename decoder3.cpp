@@ -65,6 +65,13 @@ Decoder3::~Decoder3()
     }
     
 }
+void Decoder3::GetVersion(int* maj, int* min)
+{
+    if (!maj || !min) return;
+    *maj = DECODER_MAJOR_VERSION;
+    *min = DECODER_MINOR_VERSION;
+}
+
 void Decoder3::ReaderInit()
 {
     // Register everything

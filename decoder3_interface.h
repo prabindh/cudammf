@@ -22,6 +22,7 @@ class IDecoder3
 public:
     IDecoder3(bool bUseNvDec, bool bUseNvConverter) {};
     virtual ~IDecoder3() {};
+    virtual void GetVersion(int* maj, int* min) = 0;
     virtual int VideoReadInit(char* fileName, int& w, int& h) = 0;
     // To be called by renderer to obtain decoded buffer
     virtual int ReadNextFrame(TimedBuffer* pRGBBufPtr, void** pDeviceBuffer) = 0;

@@ -47,7 +47,7 @@ public:
         void** pBgraDeviceMem,
         int w, int h) = 0;
     // CUDA push BGRA device buffer to GL device buffer - does NOT need init/cleanup
-    virtual int PushCUDAToGL(void* pDeviceMem, int glTextureId, int bytes) = 0;
+    virtual int PushCUDAToGL(void* pDeviceMem, int glTextureId, int w, int h) = 0;
     // CUDA filter from GL texture to GL texture - does NOT need init
     virtual int CUDAFilterGL(int glSourceTextureId, int glDestTextureId, int w, int h, float* pFilter) = 0;
     // CLEANUP (for direct cuda - usage without decoder only)

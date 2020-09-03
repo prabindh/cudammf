@@ -511,7 +511,7 @@ int Decoder3::ReadNextFrame(TimedBuffer* pRGBBufPtr, void** pDevicePtr)
 }
 
 
-int Decoder3::PushCUDAToGL(void* pDevice, int glTextureId, int bytes)
+int Decoder3::PushCUDAToGL(void* pDevice, int glTextureId, int w, int h)
 {
     cudaGraphicsResource_t res = 0;
     cudaError_t cudaErr = cudaSuccess;
@@ -537,7 +537,7 @@ int Decoder3::PushCUDAToGL(void* pDevice, int glTextureId, int bytes)
         }
         m_texture2CudaResourceMap[glTextureId] = res;
     }
-    CUDACopyDeviceToGL(res, pDevice, bytes);
+    CUDACopyDeviceToGL(res, pDevice, w, h);
 
     return 0;
 }

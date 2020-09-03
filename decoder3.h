@@ -51,7 +51,7 @@ public:
     // To be called by renderer after finishing usage
     int PushEmptyIntoQ(TimedBuffer pBuf, void* pDeviceBuffer);
     // CUDA convert YUV device buffer to GL device buffer
-    int PushCUDAToGL(void* pDevice, int glTextureId, int bytes);
+    int PushCUDAToGL(void* pDevice, int glTextureId, int w, int h);
     // CUDA filter from GL texture to GL texture
     int CUDAFilterGL(int glSourceTextureId, int glDestTextureId, int w, int h, float* pFilter);
     int CUDAYUV420PToBGRA(
@@ -121,7 +121,7 @@ private:
 
 void CUDACopyDeviceToGL(cudaGraphicsResource_t& dstGLDeviceBuffer,
     void* srcCudaDeviceBuffer,
-    unsigned int sizeBytes);
+    unsigned int width, unsigned int height);
 void PostprocessCUDA(cudaGraphicsResource_t& dst, cudaGraphicsResource_t& src,
     unsigned int width, unsigned int height,
     float* filter,  // Filter is assumed to be a 5x5 filter kernel

@@ -118,7 +118,7 @@ __global__ void PostprocessKernel( uchar4* dst, unsigned int imgWidth, unsigned 
 // Copy CUDA BGRA buffer directly to OpenGL
 void CUDACopyDeviceToGL( cudaGraphicsResource_t& dstGLDeviceBuffer, 
                 void* srcCudaDeviceBuffer,
-                unsigned int sizeBytes )
+                unsigned int width, unsigned int height )
 {
     cudaGraphicsResource_t resources[1] = { dstGLDeviceBuffer };
 
@@ -131,7 +131,8 @@ void CUDACopyDeviceToGL( cudaGraphicsResource_t& dstGLDeviceBuffer,
     cutilSafeCall( cudaGraphicsSubResourceGetMappedArray( &dstArray, dstGLDeviceBuffer, 0, 0 ) );
 
     // Copy the destination back to the source array
-    cutilSafeCall( cudaMemcpyToArray( dstArray, 0, 0, srcCudaDeviceBuffer, sizeBytes, cudaMemcpyDeviceToDevice ) );
+    cutilSafeCall( cudaMemcpy2DToArray(dstArray,0,0, srcCudaDeviceBuffer, width * sizeof(uchar4), width * sizeof(uchar4), height, 
+cudaMemcpyDeviceToDevice) );
 
     // Unmap the resources again so the texture can be rendered in OpenGL
     cutilSafeCall( cudaGraphicsUnmapResources( 1, resources ) );
@@ -209,7 +210,8 @@ void PostprocessCUDA( cudaGraphicsResource_t& dst, cudaGraphicsResource_t& src, 
     PostprocessKernel<<< gridDim, blockDim >>>( g_dstBuffer, width, height );
 
     // Copy the destination back to the source array
-    cutilSafeCall( cudaMemcpyToArray( dstArray, 0, 0, g_dstBuffer, bufferSize, cudaMemcpyDeviceToDevice ) );
+    cutilSafeCall (cudaMemcpy2DToArray(dstArray,0,0, g_dstBuffer, width * sizeof(uchar4), width * sizeof(uchar4), height, 
+cudaMemcpyDeviceToDevice));
 
     // Unbind the texture reference
     cutilSafeCall( cudaUnbindTexture( texRef ) );

@@ -17,9 +17,9 @@ public:
     IEncoder2(const bool hwAccel, const bool bNv, int w, int h, int fps, const char* outFile, int format) {};
     virtual ~IEncoder2() {};
     virtual void GetVersion(int* maj, int* min) = 0;
-    virtual bool isInited() = 0;
-    virtual int addFrame(uint8_t* pBuffer) = 0;
-    virtual int addFrameToQ(uint8_t* pBuffer, int sizeBytes) = 0;
+    virtual bool IsInited() = 0;
+    virtual int AddFrame(uint8_t* pBuffer) = 0;
+    virtual int AddFrameToQ(uint8_t* pBuffer, int sizeBytes) = 0;
 };
 
 // Factory

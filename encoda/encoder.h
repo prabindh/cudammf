@@ -40,10 +40,10 @@ public:
     Encoder2(const bool hwAccel, const bool bNv, int w, int h, int fps, const char* outFile, int format);
     ~Encoder2();
     void GetVersion(int* maj, int* min);
-    bool isInited();
-    int addFrame(uint8_t* pBuffer);
-    int addFrameToQ(uint8_t* pBuffer, int sizeBytes);
-    int flush();
+    bool IsInited();
+    int AddFrame(uint8_t* pBuffer);
+    int AddFrameToQ(uint8_t* pBuffer, int sizeBytes);
+    int Flush();
 private:
     AVFilterContext* m_filterContexts[MAX_FILTERS] = { 0 };
     int m_frameId;

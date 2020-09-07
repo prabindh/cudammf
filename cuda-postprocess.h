@@ -5,4 +5,4 @@ void PostprocessCUDA( cudaGraphicsResource_t& dst, cudaGraphicsResource_t& src,
 
 void CUDACopyDeviceToGL(cudaGraphicsResource_t& dstGLDeviceBuffer,
     void* srcCudaDeviceBuffer,
-    unsigned int sizeBytes);
+    unsigned int width, unsigned int height);

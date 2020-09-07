@@ -79,7 +79,7 @@ Encoder2::~Encoder2()
     if (!m_bInited)
         return;
 
-    flush();
+    Flush();
     snprintf(m_logBuff, sizeof(m_logBuff), "Encoded [%d] frames", m_frameId);
     pLogger->info(m_logBuff);
 
@@ -112,7 +112,7 @@ void Encoder2::GetVersion(int* maj, int* min)
     *min = ENCODER_MINOR_VERSION;
 }
 
-bool Encoder2::isInited()
+bool Encoder2::IsInited()
 {
     return m_bInited;
 }
@@ -140,7 +140,7 @@ void Encoder2::EncodeThreadFunc(void* param)
             std::vector<DataBuff>::iterator it1 = m_encodeInputQ.begin();
             m_encodeInputQ.erase(it1);
 
-            ret = addFrame((uint8_t*)dataBuff.pBuff);
+            ret = AddFrame((uint8_t*)dataBuff.pBuff);
             delete[]dataBuff.pBuff;
 
             if (ret < 0)
@@ -274,7 +274,7 @@ int Encoder2::createFilterGraphNv(AVPixelFormat pixFormat)
     return ret;
 }
 
-int Encoder2::addFrameToQ(uint8_t* pData, int sizeBytes)
+int Encoder2::AddFrameToQ(uint8_t* pData, int sizeBytes)
 {
 
     if (m_encodeInputQ.size() > MAX_PENDING_ENCODE_ITEMS)
@@ -310,7 +310,7 @@ int Encoder2::addFrameToQ(uint8_t* pData, int sizeBytes)
     return 0;
 }
 
-int Encoder2::addFrame(uint8_t* pData)
+int Encoder2::AddFrame(uint8_t* pData)
 {
     int ret = 0;
     AVFrame* input = nullptr;
@@ -398,7 +398,7 @@ int Encoder2::encodeFrame(AVFrame* frame)
     return 0;
 }
 
-int Encoder2::flush()
+int Encoder2::Flush()
 {
     int ret = 0;
     

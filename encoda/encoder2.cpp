@@ -135,6 +135,13 @@ void Encoder2::EncodeThreadFunc(void* param)
         {
             int ret = 0;
             std::unique_lock<std::mutex> encodeBuffLock(m_inputQMutex);
+
+            if (0 == m_encodeInputQ.size())
+            {
+                pLogger->info("No buffer, but woken up");
+                continue;
+            }
+
             DataBuff dataBuff = m_encodeInputQ.front();
 
             std::vector<DataBuff>::iterator it1 = m_encodeInputQ.begin();
@@ -142,6 +149,7 @@ void Encoder2::EncodeThreadFunc(void* param)
 
             ret = AddFrame((uint8_t*)dataBuff.pBuff);
             delete[]dataBuff.pBuff;
+            dataBuff.pBuff = nullptr;
 
             if (ret < 0)
             {

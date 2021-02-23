@@ -157,7 +157,6 @@ int Decoder3::CUDAYUV420PToBGRA(void* pCudaState, void* pYUV420PHost_Y, void* pY
         IMAGE_RGBA8,
         w, h);
 
-    cudaErr = cudaGetLastError();
     if (cudaErr != cudaSuccess)
     {
         snprintf(m_logBuff, sizeof(m_logBuff), "CUDA Error in kernel - [%d]", cudaErr);
@@ -175,7 +174,6 @@ int Decoder3::CUDAYUV420PToBGRA(void* pCudaState, void* pYUV420PHost_Y, void* pY
         cudaErr = cudaMemcpy(pBGRACpuHost, pState->g_pDeviceBGRA, pState->g_sizeBGRA, cudaMemcpyDeviceToHost);
         if (cudaErr != cudaSuccess)
         {
-            cudaErr = cudaGetLastError();
             snprintf(m_logBuff, sizeof(m_logBuff), "Error in memcpy - device to host BGRA [%d]\n", cudaErr);
             m_pLogger->error(m_logBuff);
 
@@ -229,7 +227,6 @@ int Decoder3::CUDANV12ToBGRA(void* pCudaState, void* pYUV420PHost_Y, void* pYUV4
         IMAGE_RGBA8,
         w, h);
 
-    cudaErr = cudaGetLastError();
     if (cudaErr != cudaSuccess)
     {
         snprintf(m_logBuff, sizeof(m_logBuff), "CUDA Error in NV12 kernel - [%d]", cudaErr);
@@ -247,7 +244,6 @@ int Decoder3::CUDANV12ToBGRA(void* pCudaState, void* pYUV420PHost_Y, void* pYUV4
         cudaErr = cudaMemcpy(pBGRACpuHost, pState->g_pDeviceBGRA, pState->g_sizeBGRA, cudaMemcpyDeviceToHost);
         if (cudaErr != cudaSuccess)
         {
-            cudaErr = cudaGetLastError();
             snprintf(m_logBuff, sizeof(m_logBuff), "Error in memcpy - device to host BGRA [%d]\n", cudaErr);
             m_pLogger->error(m_logBuff);
 
